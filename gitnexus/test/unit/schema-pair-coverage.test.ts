@@ -175,7 +175,8 @@ describe('RELATION_SCHEMA pair coverage', () => {
     // Java static/field initializer referencing a Variable (#2792); Vue/JS
     // `const obj = { method() {} }` receiver (#2781); then the four #2793
     // aborts, each reproduced on the default `analyze` path against its own
-    // fixture under `test/fixtures/lang-resolution/`.
+    // fixture under `test/fixtures/lang-resolution/`; plus Spring constructor
+    // injection into a synthetic bean declaration from a current Libra release.
     const reported = [
       'Class|Variable',
       'Const|Method',
@@ -183,6 +184,7 @@ describe('RELATION_SCHEMA pair coverage', () => {
       'Method|File',
       'Namespace|Record',
       'Class|Tool',
+      'Constructor|CodeElement',
     ];
     expect(reported.filter((pair) => !declared.has(pair))).toEqual([]);
   });
@@ -207,6 +209,7 @@ describe('RELATION_SCHEMA pair coverage', () => {
       'Module|CodeElement',
       'Module|Namespace',
       'Namespace|Function',
+      'Constructor|CodeElement',
     ];
     const allRulePairs = new Set([...scopeBridgePairs(), ...attachmentPairs()]);
     expect(nonBridge.filter((pair) => allRulePairs.has(pair))).toEqual([]);

@@ -1,7 +1,7 @@
-<!-- version: 1.14.0 -->
-<!-- Last updated: 2026-07-16 -->
+<!-- version: 1.18.0 -->
+<!-- Last updated: 2026-09-03 -->
 
-Last reviewed: 2026-07-16
+Last reviewed: 2026-09-03
 
 **Project:** GitNexus · **Environment:** dev · **Maintainer:** repository maintainers (see GitHub)
 
@@ -13,6 +13,16 @@ Last reviewed: 2026-07-16
 | **Writes** | Only paths required for the change; keep diffs minimal. Update lockfiles when deps change. |
 | **Executes** | `npm`, `npx`, `node` under `gitnexus/` and `gitnexus-web/`; `uv run` for Python under `eval/`; documented CI/dev workflows. |
 | **Off-limits** | Real `.env` / secrets, production credentials, unrelated repos, destructive git ops without confirmation. |
+
+## Fork maintenance and Libra integration
+
+- `origin` is the maintained fork and `upstream` is the official GitNexus repository. The fork's delivery branch is `main`; keep the Libra-specific delta directly on `main` instead of maintaining a separate long-lived customization branch.
+- The intentional fork delta is limited to request-like JavaScript/TypeScript HTTP client ingestion, group-level `http_mappings` used to connect gateway-prefixed `libra-client` calls to `libra-server`, `libra-trading`, and `titans-hms-operation` providers, and minimal relation-schema compatibility pairs required to index current Libra releases. Spring provider attribution is already upstream and must not be carried as a duplicate patch.
+- Maintain exactly one rolling release group named `libra-release`. Never encode a release number or customization marker in the group name. When the latest release advances, index the aligned `libra-client`, `libra-server`, `libra-trading`, and `titans-hms-operation` checkouts, update this group's member registry names in place, and sync it again; keep obsolete versioned release groups out of the active group registry.
+- Keep dedicated release-index checkouts outside `~/Projects/libra` (for example under `~/Projects/GitNexusRepos`) and leave them at a detached HEAD pinned to the exact indexed release commit. Never keep a release branch checked out solely for GitNexus indexing; when advancing the rolling release, resolve the exact target SHA and switch the index checkout to that SHA in detached mode before running `analyze`.
+- To refresh the fork, fetch both remotes, switch to a clean `main`, and rebase onto `upstream/main`. Preserve a local patch only while upstream lacks equivalent behavior; if upstream supersedes it, prove parity with the focused tests and a Libra group sync before dropping it.
+- After a successful rebase, run the focused group/request-like tests, `cd gitnexus && npx tsc --noEmit`, and `npm run build`. When current Libra checkouts are available, also refresh all four aligned release indexes in `libra-release` and verify the group produces frontend HTTP consumers and cross-repo links.
+- Push the rebased history only to `origin/main`, using `--force-with-lease` after verifying the expected remote head. Never force-push `upstream` or overwrite unrelated fork work.
 
 ## Model Configuration
 
@@ -90,6 +100,10 @@ mirror. `gitnexus/test/unit/shipped-skills-sync.test.ts` guards the copies. Toke
 
 | Date | Version | Change |
 |------|---------|--------|
+| 2026-09-03 | 1.18.0 | Allowed minimal relation-schema compatibility pairs in the maintained fork so current Libra releases remain indexable. |
+| 2026-09-03 | 1.17.0 | Required dedicated Libra release-index checkouts to stay outside the main checkout directory and use detached HEADs pinned to exact release commits. |
+| 2026-08-21 | 1.16.0 | Standardized the rolling `libra-release` group name and in-place four-repository release refresh policy. |
+| 2026-08-21 | 1.15.0 | Documented the maintained-fork `main` policy, upstream rebase workflow, and the bounded Libra integration delta and verification. |
 | 2026-07-20 | 1.14.0 | `gitnexus-review` gains a coordinated swarm: six `ci-personas/` lanes the CI review agent dispatches as subagents (via the `Agent` tool), with a bounded critic gate and sidechain-excluded evidence. |
 | 2026-07-16 | 1.13.0 | `gitnexus-plan` asks plan depth up front (quick/standard/deep) in interactive runs; `gitnexus-lfg` gate slimmed to proceed/stop (Deepen stays as the route-back mechanism). |
 | 2026-07-16 | 1.12.0 | Renamed `gitnexus-pr-review` to `gitnexus-review`; added PR URL/number, branch/range, and local-change targets plus install migration (setup warns on a legacy `gitnexus-pr-review` dir and leaves it in place; uninstall removes it). |

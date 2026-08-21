@@ -18,6 +18,7 @@ describe('Group types', () => {
       description: 'All company microservices',
       repos: { 'hr/hiring/backend': 'hr-hiring-backend' },
       links: [],
+      httpMappings: [],
       packages: {},
       detect: {
         http: true,
@@ -87,6 +88,7 @@ describe('Group types', () => {
       description: 'All company microservices',
       repos: { orders: 'orders-repo' },
       links: [],
+      httpMappings: [],
       packages: {},
       detect: {
         http: true,

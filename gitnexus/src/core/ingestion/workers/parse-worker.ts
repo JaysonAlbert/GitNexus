@@ -161,6 +161,11 @@ import {
   DEFAULT_PDG_MAX_FUNCTION_LINES,
   type CfgSkipCounts,
 } from '../cfg/collect.js';
+import {
+  collectRequestLikeImportBindings,
+  getRequestLikeMemberCallUrl,
+  isRequestLikeClientLanguage,
+} from '../request-like-clients.js';
 
 import { logger } from '../../logger.js';
 export type { ExtractedRoute } from '../route-extractors/laravel.js';
@@ -1544,6 +1549,9 @@ const processFileGroup = (
     // Length-preserving — see LanguageProvider.preprocessSource contract.
     parseContent =
       getProvider(language).preprocessSource?.(parseContent, file.path) ?? parseContent;
+    const requestLikeBindings = isRequestLikeClientLanguage(language)
+      ? collectRequestLikeImportBindings(parseContent)
+      : undefined;
 
     clearCaches(); // Reset memoization before each new file
 
@@ -1866,7 +1874,16 @@ const processFileGroup = (
       if (captureMap['http_client'] && captureMap['http_client.url']) {
         const method = captureMap['http_client.method']?.text;
         const url = captureMap['http_client.url'].text;
-        if (method && HTTP_CLIENT_ONLY_METHODS.has(method) && url.startsWith('/')) {
+        const requestLikeUrl = requestLikeBindings
+          ? getRequestLikeMemberCallUrl(captureMap, requestLikeBindings)
+          : null;
+        if (requestLikeUrl) {
+          result.fetchCalls.push({
+            filePath: file.path,
+            fetchURL: requestLikeUrl,
+            lineNumber: captureMap['http_client'].startPosition.row + lineOffset,
+          });
+        } else if (method && HTTP_CLIENT_ONLY_METHODS.has(method) && url.startsWith('/')) {
           result.fetchCalls.push({
             filePath: file.path,
             fetchURL: url,

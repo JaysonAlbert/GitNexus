@@ -532,7 +532,7 @@ const ATTACHMENT_TARGET_LABELS: readonly NodeTableName[] = [
  * (`DEFINITION_ANCHOR_LABELS × {CodeElement, Section, Typedef, Union,
  * Namespace, Impl, TypeAlias, Static, Template}`) would take the table to 641
  * pairs and leave only ~29 lines here. `bench/schema-pairs` measures 641 at
- * 1.22–1.43× on the historical reference box; current production's 461 pairs
+ * 1.22–1.43× on the historical reference box; current production's 462 pairs
  * remain below their 1.5× Windows budget. Those cross-machine values are not an
  * ordering, so any proposal must remeasure both sizes on one box. Until then,
  * the rule stays deferred rather than trading ~40 lines for unmeasured query cost.
@@ -600,6 +600,7 @@ export const STRUCTURAL_PAIR_DDL = `  FROM File TO Folder,
   FROM \`Constructor\` TO \`Impl\`,
   FROM \`Constructor\` TO \`Namespace\`,
   FROM \`Constructor\` TO \`Typedef\`,
+  FROM \`Constructor\` TO CodeElement,
   FROM Route TO Process,
   FROM Tool TO Process,
   FROM Destination TO \`Property\`,

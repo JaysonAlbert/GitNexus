@@ -35,6 +35,7 @@ import { ManifestExtractor } from './extractors/manifest-extractor.js';
 import { discoverWorkspaceLinks } from './extractors/workspace-extractor.js';
 import { buildProviderIndex, runExactMatch, runWildcardMatch } from './matching.js';
 import type { WildcardMatchResult } from './matching.js';
+import { applyHttpMappings } from './http-mapping.js';
 import { detectServiceBoundaries, assignService } from './service-boundary-detector.js';
 import type { CypherExecutor } from './contract-extractor.js';
 import { applyDegradedFlag } from './normalization.js';
@@ -190,6 +191,10 @@ function dedupeCrossLinks(links: CrossLink[]): CrossLink[] {
     out.push(link);
   }
   return out;
+}
+
+function matchedContractKey(repo: string, contractId: string): string {
+  return `${repo}::${contractId}`;
 }
 
 /**
@@ -642,8 +647,18 @@ export async function syncGroup(config: GroupConfig, opts?: SyncOptions): Promis
     for (const release of activeReleases) release();
   }
 
-  const providerIndex = buildProviderIndex(autoContracts, config.matching);
-  const { matched, unmatched } = runExactMatch(autoContracts, providerIndex, config.matching);
+  const httpMappingMatches = applyHttpMappings(autoContracts, config.httpMappings ?? []);
+  const exactContracts = autoContracts.filter(
+    (contract) =>
+      !(
+        contract.role === 'consumer' &&
+        httpMappingMatches.matchedConsumerIds.has(
+          matchedContractKey(contract.repo, contract.contractId),
+        )
+      ),
+  );
+  const providerIndex = buildProviderIndex(exactContracts, config.matching);
+  const { matched, unmatched } = runExactMatch(exactContracts, providerIndex, config.matching);
   // `exactOnly` had the same defect this PR removes `skipEmbeddings` for: it was
   // declared, threaded through the CLI and MCP, and never read, so `--exact-only`
   // silently produced wildcard links anyway. It is honoured here rather than
@@ -664,10 +679,22 @@ export async function syncGroup(config: GroupConfig, opts?: SyncOptions): Promis
   // manifest-declared link can also emit a matchType:'exact' CrossLink with the
   // same endpoints. Prefer the manifest version — it reflects operator intent
   // and carries matchType:'manifest' which downstream consumers may rely on.
-  const crossLinks = dedupeCrossLinks([...manifestCrossLinks, ...matched, ...wildcard.matched]).map(
-    applyDegradedFlag,
-  );
+  const crossLinks = dedupeCrossLinks([
+    ...manifestCrossLinks,
+    ...httpMappingMatches.matched,
+    ...matched,
+    ...wildcard.matched,
+  ]).map(applyDegradedFlag);
   const allContracts: StoredContract[] = autoContracts;
+  const matchedIds = new Set(
+    crossLinks.flatMap((link) => [
+      matchedContractKey(link.from.repo, link.fromContractId ?? link.contractId),
+      matchedContractKey(link.to.repo, link.toContractId ?? link.contractId),
+    ]),
+  );
+  const finalUnmatched = wildcard.remaining.filter(
+    (contract) => !matchedIds.has(matchedContractKey(contract.repo, contract.contractId)),
+  );
 
   const registry: ContractRegistry = {
     version: 1,
@@ -913,7 +940,7 @@ export async function syncGroup(config: GroupConfig, opts?: SyncOptions): Promis
     contracts: allContracts,
     crossLinks,
     suppressedMatchStages,
-    unmatched: wildcard.remaining,
+    unmatched: finalUnmatched,
     missingRepos,
     unreadableRepos,
     failedRepos,
